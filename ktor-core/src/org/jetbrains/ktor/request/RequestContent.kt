@@ -3,6 +3,7 @@ package org.jetbrains.ktor.request
 import org.jetbrains.ktor.application.*
 import org.jetbrains.ktor.http.*
 import org.jetbrains.ktor.nio.*
+import org.jetbrains.ktor.pipeline.*
 import org.jetbrains.ktor.util.*
 import java.io.*
 import kotlin.reflect.*
@@ -25,9 +26,31 @@ abstract class RequestContent(private val request: ApplicationRequest) {
         }
     }
 
+    val receivePipeline = ReceivePipeline()
+
     protected abstract fun getInputStream(): InputStream
     protected abstract fun getReadChannel(): ReadChannel
     protected abstract fun getMultiPartData(): MultiPartData
+
+    fun <T : Any> PipelineContext<ApplicationCall>.receive(type: KClass<T>, handler: (T) -> Unit): Nothing {
+        receivePipeline.intercept(ReceivePipeline.After) {
+            val message = subject.message
+            if (!type.java.isInstance(message)) {
+                throw IllegalStateException("Invalid message type found, should be $type but got ${message.javaClass}")
+            }
+
+            @Suppress("UNCHECKED_CAST")
+            handler(message as T)
+        }
+
+        fork(ReceivePipeline.ReceiveState(call), receivePipeline)
+    }
+
+    private fun PipelineContext<ApplicationCall>.echo() {
+        receive(String::class) { text ->
+            call.respond(text)
+        }
+    }
 
     open operator fun <T : Any> get(type: KClass<T>): T {
         @Suppress("IMPLICIT_CAST_TO_ANY", "UNCHECKED_CAST")
