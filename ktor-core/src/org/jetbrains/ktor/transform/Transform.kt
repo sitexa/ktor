@@ -1,10 +1,8 @@
 package org.jetbrains.ktor.transform
 
 import org.jetbrains.ktor.application.*
-import org.jetbrains.ktor.features.*
 import org.jetbrains.ktor.pipeline.*
 import org.jetbrains.ktor.util.*
-import java.util.*
 
 val Application.transform: ApplicationTransform<PipelineContext<ResponsePipelineState>>
     get() = feature(TransformationSupport)
@@ -28,7 +26,7 @@ fun PipelineContext<ResponsePipelineState>.proceed(message: Any): Nothing {
 fun <C : Any> TransformTable<C>.transform(ctx: C, obj: Any) = transformImpl(ctx, obj)
 
 tailrec
-private fun <C : Any, T : Any> TransformTable<C>.transformImpl(ctx: C, obj: T, handlers: List<TransformTable.Handler<C, T>> = handlers(obj.javaClass), visited: TransformTable.HandlersSet<C> = newHandlersSet()): Any {
+private fun <C : Any, T : Any> TransformTable<C>.transformImpl(ctx: C, obj: T, handlers: List<TransformTable.Handler<C, T, *>> = handlers(obj.javaClass), visited: TransformTable.HandlersSet<C> = newHandlersSet()): Any {
     for (i in 0 .. handlers.size - 1) {
         val handler = handlers[i]
 
@@ -53,8 +51,8 @@ private fun <C : Any, T : Any> TransformTable<C>.transformImpl(ctx: C, obj: T, h
 }
 
 internal class TransformationState {
-    val visited: MutableSet<TransformTable.Handler<PipelineContext<ResponsePipelineState>, *>> = hashSetOf()
-    var lastHandler: TransformTable.Handler<PipelineContext<ResponsePipelineState>, *>? = null
+    val visited = TransformTable.HandlersSet<PipelineContext<ResponsePipelineState>>()
+    var lastHandler: TransformTable.Handler<PipelineContext<ResponsePipelineState>, *, *>? = null
 
     fun markLastHandlerVisited() {
         val handler = lastHandler
