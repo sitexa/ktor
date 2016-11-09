@@ -12,6 +12,8 @@ abstract class KtorServlet : HttpServlet() {
 
     abstract val application: Application
     protected val hostPipeline by lazy { defaultHostPipeline(application.environment) }
+    open val pool: ByteBufferPool
+        get() = NoPool
 
     override fun service(request: HttpServletRequest, response: HttpServletResponse) {
         if (response.isCommitted) {
@@ -25,7 +27,7 @@ abstract class KtorServlet : HttpServlet() {
             request.startAsync().apply {
                 timeout = 0L
             }
-            val call = ServletApplicationCall(application, request, response, NoPool, { call, block, next ->
+            val call = ServletApplicationCall(application, request, response, pool, { call, block, next ->
                 tryPush(request, call, block, next)
             })
 

@@ -8,8 +8,8 @@ import org.apache.tomcat.util.net.*
 import org.apache.tomcat.util.net.jsse.*
 import org.apache.tomcat.util.net.openssl.*
 import org.jetbrains.ktor.application.*
-import org.jetbrains.ktor.features.*
 import org.jetbrains.ktor.host.*
+import org.jetbrains.ktor.nio.DefaultByteBufferPool
 import org.jetbrains.ktor.servlet.*
 import org.jetbrains.ktor.transform.*
 import java.nio.file.*
@@ -29,6 +29,8 @@ class TomcatApplicationHost(override val hostConfig: ApplicationHostConfig,
     private val ktorServlet = object : KtorServlet() {
         override val application: Application
             get() = this@TomcatApplicationHost.application
+
+        override val pool = DefaultByteBufferPool(8192 * 4096)
     }
 
     val server = Tomcat().apply {
