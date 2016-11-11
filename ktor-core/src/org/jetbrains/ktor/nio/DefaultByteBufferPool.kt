@@ -2,16 +2,20 @@ package org.jetbrains.ktor.nio
 
 
 import java.nio.ByteBuffer
-import java.util.*
+import java.util.concurrent.ArrayBlockingQueue
 
 class DefaultByteBufferPool(val size: Int, val partSize: Int = 8192, concurrency: Int = Runtime.getRuntime().availableProcessors()) : ByteBufferPool {
+    private val area = ByteBuffer.allocate(size)
     private val blocksPerBucket = (size / concurrency) / partSize
-    private val buckets = Array(concurrency) { Bucket(size / concurrency, blocksPerBucket) }
+    private val subs = area.split(concurrency)
+    private val buckets = Array(concurrency) { Bucket(subs[it], blocksPerBucket) }
 
-    private class TicketImpl(buffer: ByteBuffer, val bucket: Bucket, val index: Int) : ReleasablePoolTicket(buffer) {
+    private class TicketImpl(buffer: ByteBuffer, val bucket: Bucket) : ReleasablePoolTicket(buffer) {
         override fun release() {
-            super.release()
-            bucket.free(index)
+            if (!released) {
+                bucket.free(buffer)
+                super.release()
+            }
         }
     }
 
@@ -44,63 +48,27 @@ class DefaultByteBufferPool(val size: Int, val partSize: Int = 8192, concurrency
         }
     }
 
-    private class Bucket(size: Int, val count: Int) {
-        private val partSize = size / count
-        private val buffer = ByteBuffer.allocate(size)!!
+    private class Bucket(buffer: ByteBuffer, val count: Int) {
+        private val parts = buffer.split(count).let { ArrayBlockingQueue(count, false, it.asList()) }
 
-        private val parts = Array(count) { idx ->
-            buffer.limit(partSize * (idx + 1))
-            buffer.position(partSize * idx)
+        fun allocate(size: Int): TicketImpl? = parts.poll()?.let { TicketImpl(it.apply {
+            clear()
+            limit(size)
+        }, this) }
 
-            buffer.slice()!!
+        fun free(buffer: ByteBuffer) {
+            parts.offer(buffer)
         }
+    }
 
-        private val bits = BitSet(count)
-        private var next: Int = 0
+}
 
-        fun allocate(size: Int): TicketImpl? {
-            val index = allocateLocked(allocateBit())
-            if (index == -1) return null
+private fun ByteBuffer.split(parts: Int): Array<ByteBuffer> {
+    val partSize = capacity() / parts
 
-            val buffer = parts[index].apply { clear(); limit(size) }
-
-            return TicketImpl(buffer, this, index)
-        }
-
-        @Synchronized
-        private fun allocateLocked(guess: Int): Int {
-            val index = if (guess == -1 || bits.get(guess)) {
-                allocateBit()
-            } else {
-                guess
-            }
-
-            if (index >= 0) {
-                bits.set(index)
-            }
-            return index
-        }
-
-        @Synchronized
-        fun free(index: Int) {
-            bits.clear(index)
-            next = Math.min(next, index)
-        }
-
-        private fun allocateBit(): Int {
-            val b1 = bits.nextClearBit(next)
-            if (b1 < count) {
-                return b1
-            }
-
-            if (next > 0) {
-                val b2 = bits.nextClearBit(0)
-                if (b2 < count) {
-                    return b2
-                }
-            }
-
-            return -1
-        }
+    return Array(parts) { idx ->
+        limit(Math.min((idx + 1) * partSize, capacity()))
+        position(idx * partSize)
+        slice()
     }
 }

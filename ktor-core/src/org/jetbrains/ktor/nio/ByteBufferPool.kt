@@ -19,6 +19,9 @@ abstract class ReleasablePoolTicket(private var bb: ByteBuffer) : PoolTicket {
         bb = RELEASED
     }
 
+    val released: Boolean
+        get() = bb == RELEASED
+
     companion object {
         private val RELEASED = ByteBuffer.allocate(0)
     }
