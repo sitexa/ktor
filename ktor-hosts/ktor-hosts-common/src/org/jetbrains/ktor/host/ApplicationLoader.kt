@@ -21,6 +21,7 @@ import kotlin.reflect.jvm.*
  */
 class ApplicationLoader(val environment: ApplicationEnvironment, val autoreload: Boolean) : ApplicationLifecycle {
     private var _applicationInstance: Application? = null
+    private var _applicationClassLoader: ClassLoader? = null
     private val applicationInstanceLock = ReentrantReadWriteLock()
     private var packageWatchKeys = emptyList<WatchKey>()
     private val log = environment.log.fork("Loader")
@@ -57,8 +58,9 @@ class ApplicationLoader(val environment: ApplicationEnvironment, val autoreload:
             }
 
             _applicationInstance ?: applicationInstanceLock.write {
-                val newApplication = createApplication()
+                val (newApplication, newClassLoader) = createApplication()
                 _applicationInstance = newApplication
+                _applicationClassLoader = newClassLoader
                 newApplication
             }
         }
@@ -77,7 +79,7 @@ class ApplicationLoader(val environment: ApplicationEnvironment, val autoreload:
         return parentUrls
     }
 
-    private fun createApplication(): Application {
+    private fun createApplication(): Pair<Application, ClassLoader> {
         val classLoader = if (autoreload) {
             val allUrls = environment.classLoader.allURLs()
             val watchPatterns = watchPatterns
@@ -104,7 +106,7 @@ class ApplicationLoader(val environment: ApplicationEnvironment, val autoreload:
         val oldThreadClassLoader = currentThread.contextClassLoader
         currentThread.contextClassLoader = classLoader
         try {
-            return instantiateAndConfigureApplication(classLoader)
+            return instantiateAndConfigureApplication(classLoader) to classLoader
         } finally {
             currentThread.contextClassLoader = oldThreadClassLoader
         }
@@ -118,6 +120,13 @@ class ApplicationLoader(val environment: ApplicationEnvironment, val autoreload:
                 log.error("Failed to destroy application instance.", e)
             } finally {
                 _applicationInstance = null
+                try {
+                    (_applicationClassLoader as? Closeable)?.close()
+                } catch (e: Throwable) {
+                    log.error("Failed to close classloader", e)
+                } finally {
+                    _applicationClassLoader = null
+                }
             }
 
             packageWatchKeys.forEach { it.cancel() }
