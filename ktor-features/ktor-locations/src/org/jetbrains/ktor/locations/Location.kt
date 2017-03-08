@@ -41,7 +41,7 @@ inline fun <reified T : Any> Route.handle(noinline body: suspend PipelineContext
 
 fun <T : Any> Route.handle(dataClass: KClass<T>, body: suspend PipelineContext<ApplicationCall>.(T) -> Unit) {
     handle {
-        val location = locations().resolve<T>(dataClass, call)
+        val location = call.application.feature(Locations).resolve<T>(dataClass, call)
         body(location)
     }
 }

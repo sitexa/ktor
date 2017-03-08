@@ -1,10 +1,9 @@
 package org.jetbrains.ktor.testing
 
 import org.jetbrains.ktor.application.*
-import org.jetbrains.ktor.client.*
 import org.jetbrains.ktor.host.*
 import org.jetbrains.ktor.logging.*
-import org.jetbrains.ktor.routing.*
+import org.jetbrains.ktor.pipeline.*
 import org.jetbrains.ktor.util.*
 import org.junit.*
 import org.slf4j.*
@@ -33,16 +32,20 @@ abstract class HostTestBase<H : ApplicationHost> {
         (server as? ApplicationHostStartable)?.stop(100, 5000, TimeUnit.MILLISECONDS)
     }
 
-    protected abstract fun createServer(envInit: ApplicationEnvironmentBuilder.() -> Unit, routing: Routing.() -> Unit): H
+    protected abstract fun createServer(envInit: ApplicationEnvironmentBuilder.() -> Unit, application: Application.() -> Unit): H
 
-    protected fun createAndStartServer(envInit: ApplicationEnvironmentBuilder.() -> Unit = {}, block: Routing.() -> Unit): H {
+    protected fun createAndStartServer(envInit: ApplicationEnvironmentBuilder.() -> Unit = {}, block: Application.() -> Unit): H {
         val server = createServer(envInit, {
-            application.install(CallLogging)
+            install(CallLogging)
             block()
         })
         startServer(server)
 
         return server
+    }
+
+    fun Application.handle(body: PipelineInterceptor<ApplicationCall>) {
+        intercept(ApplicationCallPipeline.Call, body)
     }
 
     protected fun startServer(server: H) {

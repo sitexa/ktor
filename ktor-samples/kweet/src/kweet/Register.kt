@@ -4,7 +4,6 @@ import kweet.dao.*
 import kweet.model.*
 import org.jetbrains.ktor.application.*
 import org.jetbrains.ktor.freemarker.*
-import org.jetbrains.ktor.http.*
 import org.jetbrains.ktor.locations.*
 import org.jetbrains.ktor.routing.*
 import org.jetbrains.ktor.sessions.*
@@ -35,7 +34,7 @@ fun Route.register(dao: DAOFacade, hashFunction: (String) -> String) {
                     } else if (dao.userByEmail(it.email) != null) {
                         call.redirect(it.copy(error = "User with the following email ${it.email} is already registered", password = ""))
                     } else {
-                        application.environment.log.error("Failed to register user", e)
+                        call.application.environment.log.error("Failed to register user", e)
                         call.redirect(it.copy(error = "Failed to register", password = ""))
                     }
                 }

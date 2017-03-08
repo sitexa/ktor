@@ -2,6 +2,7 @@ package org.jetbrains.ktor.websocket
 
 import org.jetbrains.ktor.host.*
 import org.jetbrains.ktor.http.*
+import org.jetbrains.ktor.routing.*
 import org.jetbrains.ktor.util.*
 import org.junit.*
 import java.io.*
@@ -12,16 +13,18 @@ import java.util.*
 import kotlin.test.*
 
 abstract class WebSocketHostSuite<H : ApplicationHost> : org.jetbrains.ktor.testing.HostTestBase<H>() {
-//    @Test
+    //    @Test
     @Test(timeout = 5000L)
     fun testWebSocketGenericSequence() {
         val collected = ArrayList<String>()
 
         createAndStartServer() {
-            webSocket("/") {
-                handle { frame ->
-                    if (frame is Frame.Text) {
-                        collected.add(frame.readText())
+            routing {
+                webSocket("/") {
+                    handle { frame ->
+                        if (frame is Frame.Text) {
+                            collected.add(frame.readText())
+                        }
                     }
                 }
             }
@@ -69,18 +72,20 @@ abstract class WebSocketHostSuite<H : ApplicationHost> : org.jetbrains.ktor.test
         assertEquals(listOf("Hello"), collected)
     }
 
-        @Test
-//    @Test(timeout = 5000L)
+    @Test
+            //    @Test(timeout = 5000L)
     fun testWebSocketPingPong() {
         createAndStartServer {
-            webSocket("/") {
-                timeout = Duration.ofSeconds(120)
-                pingInterval = Duration.ofMillis(50)
+            routing {
+                webSocket("/") {
+                    timeout = Duration.ofSeconds(120)
+                    pingInterval = Duration.ofMillis(50)
+                }
             }
         }
 
         Socket("localhost", port).use { socket ->
-//            socket.soTimeout = 4000
+            //            socket.soTimeout = 4000
 
             // send upgrade request
             socket.outputStream.apply {
@@ -215,6 +220,7 @@ abstract class WebSocketHostSuite<H : ApplicationHost> : org.jetbrains.ktor.test
         }
         return rc
     }
+
     private fun InputStream.readShortBE() = (readOrFail() shl 8) or readOrFail()
     private fun InputStream.readLongBE() = (readOrFail().toLong() shl 24) or (readOrFail().toLong() shl 16) or (readOrFail().toLong() shl 8) or readOrFail().toLong()
     private fun InputStream.readFully(size: Int): ByteArray {

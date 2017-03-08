@@ -4,7 +4,6 @@ import org.jetbrains.ktor.application.*
 import org.jetbrains.ktor.content.*
 import org.jetbrains.ktor.http.*
 import org.jetbrains.ktor.pipeline.*
-import org.jetbrains.ktor.transform.*
 import org.jetbrains.ktor.util.*
 
 object HeadRequestSupport : ApplicationFeature<ApplicationCallPipeline, Unit, Unit> {
@@ -16,6 +15,7 @@ object HeadRequestSupport : ApplicationFeature<ApplicationCallPipeline, Unit, Un
         Unit.configure()
 
         pipeline.intercept(ApplicationCallPipeline.Infrastructure) {
+            val call = call
             if (call.request.local.method == HttpMethod.Head) {
                 it.response.pipeline.phases.insertBefore(ApplicationResponsePipeline.TransferEncoding, HeadPhase)
 

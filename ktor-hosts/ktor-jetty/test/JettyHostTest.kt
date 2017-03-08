@@ -7,12 +7,10 @@ import org.jetbrains.ktor.testing.*
 
 class JettyHostTest : HostTestSuite<JettyApplicationHost>() {
 
-    override fun createServer(envInit: ApplicationEnvironmentBuilder.() -> Unit, routing: Routing.() -> Unit): JettyApplicationHost {
+    override fun createServer(envInit: ApplicationEnvironmentBuilder.() -> Unit, application: Application.() -> Unit): JettyApplicationHost {
         val config = hostConfig(port, sslPort)
         val env = applicationEnvironment(envInit)
 
-        return embeddedJettyServer(config, env) {
-            install(Routing, routing)
-        }
+        return embeddedJettyServer(config, env, application)
     }
 }
