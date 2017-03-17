@@ -1,6 +1,7 @@
 package org.jetbrains.ktor.application
 
 import org.jetbrains.ktor.http.*
+import org.jetbrains.ktor.pipeline.*
 import org.jetbrains.ktor.request.*
 import org.jetbrains.ktor.util.*
 import kotlin.reflect.*
@@ -13,6 +14,11 @@ interface ApplicationRequest {
      * [ApplicationCall] instance this ApplicationRequest is attached to
      */
     val call: ApplicationCall
+
+    /**
+     * Pipeline for transforming request content into receive objects
+     */
+    val pipeline: ApplicationRequestPipeline
 
     /**
      * Parameters provided in an URL
@@ -45,3 +51,15 @@ inline suspend fun <reified T : Any> ApplicationRequest.receive(): T = receive(T
 
 @Deprecated("Replace 'content.get<>()' with 'receive<>'", level = DeprecationLevel.ERROR)
 val ApplicationRequest.content: Any get() = TODO()
+
+open class ApplicationRequestPipeline : Pipeline<ApplicationReceiveRequest>(Before, Transform, After) {
+    companion object RespondPhase {
+        val Before = PipelinePhase("Before")
+
+        val Transform = PipelinePhase("Transform")
+
+        val After = PipelinePhase("After")
+    }
+}
+
+class ApplicationReceiveRequest(val type: KClass<*>, val value: Any)

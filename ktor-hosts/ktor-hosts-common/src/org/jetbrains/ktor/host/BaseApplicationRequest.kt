@@ -9,23 +9,69 @@ import java.io.*
 import kotlin.reflect.*
 
 abstract class BaseApplicationRequest() : ApplicationRequest {
-    private val contentAsString by lazy { getReadChannel().toInputStream().reader(contentCharset() ?: Charsets.ISO_8859_1).readText() }
+    override val pipeline = ApplicationRequestPipeline()
 
-    private val computedValuesMap: ValuesMap by lazy {
-        when {
-            contentType().match(ContentType.Application.FormUrlEncoded) -> {
-                parseQueryString(contentAsString)
+    init {
+        // Transform request itself into one of three base types
+        pipeline.intercept(ApplicationRequestPipeline.Transform) { query ->
+            val value = query.value as? ApplicationRequest ?: return@intercept
+            val transformed: Any = when (query.type) {
+                ReadChannel::class -> getReadChannel()
+                InputStream::class -> getInputStream()
+                MultiPartData::class -> getMultiPartData()
+                else -> return@intercept
             }
-            contentType().match(ContentType.MultiPart.FormData) -> {
-                ValuesMap.build {
-                    getMultiPartData().parts.filterIsInstance<PartData.FormItem>().forEach { part ->
-                        part.partName?.let { name ->
-                            append(name, part.value)
-                        }
-                    }
+            proceedWith(ApplicationReceiveRequest(Nothing::class, transformed))
+        }
+
+        // Get InputStream from the same pipeline and transform it into a String
+        pipeline.intercept(ApplicationRequestPipeline.Transform) { query ->
+            if (query.type != String::class) return@intercept
+
+            val stream = pipeline.execute(ApplicationReceiveRequest(InputStream::class, query.value)).value as? InputStream
+            if (stream != null) {
+                val transformed = stream.reader(contentCharset() ?: Charsets.ISO_8859_1).readText()
+                proceedWith(ApplicationReceiveRequest(Nothing::class, transformed))
+            }
+        }
+
+        // If FormUrlEncoded, get String from the same pipeline and transform it into a ValuesMap
+        pipeline.intercept(ApplicationRequestPipeline.Transform) { query ->
+            if (query.type != ValuesMap::class) return@intercept
+
+            if (contentType().match(ContentType.Application.FormUrlEncoded)) {
+                val string = pipeline.execute(ApplicationReceiveRequest(String::class, query.value)).value as? String
+                if (string != null) {
+                    val transformed = parseQueryString(string)
+                    proceedWith(ApplicationReceiveRequest(Nothing::class, transformed))
                 }
             }
-            else -> ValuesMap.Empty
+        }
+
+        // If FormData, get String from the same pipeline and transform it into a ValuesMap
+        pipeline.intercept(ApplicationRequestPipeline.Transform) { query ->
+            if (query.type != ValuesMap::class) return@intercept
+
+            if (contentType().match(ContentType.MultiPart.FormData)) {
+                val multipart = pipeline.execute(ApplicationReceiveRequest(MultiPartData::class, query.value)).value as? MultiPartData
+                if (multipart != null) {
+                    val transformed = ValuesMap.build {
+                        multipart.parts.filterIsInstance<PartData.FormItem>().forEach { part ->
+                            part.partName?.let { name ->
+                                append(name, part.value)
+                            }
+                        }
+                    }
+                    proceedWith(ApplicationReceiveRequest(Nothing::class, transformed))
+                }
+            }
+        }
+
+        // If we were asked for ValuesMap and none of prior transformer could find it, use empty
+        // TODO: remove this, because it is weird
+        pipeline.intercept(ApplicationRequestPipeline.Transform) { query ->
+            if (query.type != ValuesMap::class) return@intercept
+            proceedWith(ApplicationReceiveRequest(Nothing::class, ValuesMap.Empty))
         }
     }
 
@@ -34,14 +80,11 @@ abstract class BaseApplicationRequest() : ApplicationRequest {
     protected open fun getInputStream(): InputStream = getReadChannel().toInputStream()
 
     suspend override fun <T : Any> receive(type: KClass<T>): T {
-        @Suppress("IMPLICIT_CAST_TO_ANY", "UNCHECKED_CAST")
-        return when (type) {
-            ReadChannel::class -> getReadChannel()
-            InputStream::class -> getInputStream()
-            String::class -> contentAsString
-            ValuesMap::class -> computedValuesMap
-            MultiPartData::class -> getMultiPartData()
-            else -> throw UnknownContentAccessorRequest("Requested content accessor '$type' cannot be provided")
-        } as T
+        val transformed = pipeline.execute(ApplicationReceiveRequest(type, this)).value
+        if (transformed is ApplicationRequest)
+            throw Exception("Cannot transform this request's content into $type")
+
+        @Suppress("UNCHECKED_CAST")
+        return transformed as? T ?: throw Exception("Cannot transform this request's content into $type")
     }
 }
