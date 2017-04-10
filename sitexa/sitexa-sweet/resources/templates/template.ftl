@@ -21,7 +21,7 @@
                     <#if user??>
                         <li class="nav-item"><a class="pure-button" href="/">home</a></li>
                         <li class="nav-item"><a class="pure-button" href="/user/${user.userId}">my timeline</a></li>
-                        <li class="nav-item"><a class="pure-button" href="/post-new">New sweet</a></li>
+                        <li class="nav-item"><a class="pure-button" href="/sweet-new">New sweet</a></li>
                         <li class="nav-item"><a class="pure-button" href="/logout">sign out
                             [${user.displayName?has_content?then(user.displayName, user.userId)}]</a></li>
                     <#else>
