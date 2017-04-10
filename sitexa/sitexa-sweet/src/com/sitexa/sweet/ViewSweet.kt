@@ -12,8 +12,8 @@ import org.jetbrains.ktor.sessions.*
  *
  */
 
-fun Route.viewSweet(dao: DAOFacade, hashFunction: (String) -> String) {
-    get<ViewSweet> {
+fun Route.viewSweetie(dao: DAOFacade, hashFunction: (String) -> String) {
+    get<SweetView> {
         val user = call.sessionOrNull<Session>()?.let { dao.user(it.userId) }
         val date = System.currentTimeMillis()
         val code = if (user != null) call.securityCode(date, user, hashFunction) else null

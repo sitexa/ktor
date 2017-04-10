@@ -14,12 +14,12 @@ import org.jetbrains.ktor.sessions.*
 
 
 fun Route.delete(dao: DAOFacade, hashFunction: (String) -> String) {
-    post<SweetDelete> {
+    post<SweetDel> {
         val user = call.sessionOrNull<Session>()?.let { dao.user(it.userId) }
         val sweet = dao.getSweet(it.id)
 
         if (user == null || sweet.userId != user.userId || !call.verifyCode(it.date, user, it.code, hashFunction)) {
-            call.redirect(ViewSweet(it.id))
+            call.redirect(SweetView(it.id))
         } else {
             dao.deleteSweet(it.id)
             call.redirect(Index())
