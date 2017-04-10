@@ -4,8 +4,8 @@ package com.sitexa.sweet
 import com.sitexa.sweet.dao.DAOFacade
 import com.sitexa.sweet.dao.DAOFacadeCache
 import com.sitexa.sweet.dao.DAOFacadeDatabase
+import com.sitexa.sweet.dao.getDataSource
 import com.sitexa.sweet.model.User
-import com.zaxxer.hikari.HikariDataSource
 import freemarker.cache.ClassTemplateLoader
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.ktor.application.Application
@@ -43,16 +43,22 @@ import javax.crypto.spec.SecretKeySpec
 
 
 @location("/")
-class Index()
+class Index
 
-@location("/post-new")
-data class PostNew(val text: String = "", val date: Long = 0L, val code: String = "")
-
-@location("/sweet/{id}/delete")
-data class SweetDelete(val id: Int, val date: Long, val code: String)
 
 @location("/sweet/{id}")
-data class ViewSweet(val id: Int)
+data class SweetView(val id: Int)
+
+@location("/sweet-new")
+data class SweetNew(val text: String = "", val date: Long = 0L, val code: String = "")
+
+//set default values to the data class!!!
+@location("/sweet-del")
+data class SweetDel(val id: Int = 0, val date: Long = 0L, val code: String = "")
+
+@location("/sweet-upd")
+data class SweetUpd(val id: Int = 0, val text: String = "", val date: Long = 0L, val code: String = "")
+
 
 @location("/user/{user}")
 data class UserPage(val user: String)
@@ -64,7 +70,7 @@ data class Register(val userId: String = "", val mobile: String = "", val displa
 data class Login(val userId: String = "", val password: String = "", val error: String = "")
 
 @location("/logout")
-class Logout()
+class Logout
 
 data class Session(val userId: String)
 
@@ -102,10 +108,12 @@ class SweetApp : AutoCloseable {
         install(Routing) {
             styles()
             index(dao)
-            postNew(dao, hashFunction)
-            delete(dao, hashFunction)
             userPage(dao)
+
+            newSweet(dao, hashFunction)
+            delSweet(dao, hashFunction)
             viewSweet(dao, hashFunction)
+            updSweet(dao, hashFunction)
 
             login(dao, hashFunction)
             register(dao, hashFunction)
@@ -144,15 +152,8 @@ fun ApplicationCall.refererHost() = request.header(HttpHeaders.Referrer)?.let { 
 private val userIdPattern = "[a-zA-Z0-9_\\.]+".toRegex()
 internal fun userNameValid(userId: String) = userId.matches(userIdPattern)
 
-fun getDataSource(): HikariDataSource {
-    val ds = HikariDataSource()
-    ds.maximumPoolSize = 20
-    ds.driverClassName = "org.mariadb.jdbc.Driver"
-    ds.jdbcUrl = "jdbc:mysql://localhost:3306/sitexa"
-    ds.isAutoCommit = false
-    ds.addDataSourceProperty("user", "root")
-    ds.addDataSourceProperty("password", "pop007")
-    ds.addDataSourceProperty("dialect", "MysqlDialect")
+private val emailPattern = "[a-zA-Z0-9_]+@[a-zA-Z0-9_]+([-.][a-zA-Z0-9_]+)".toRegex()
+internal fun emailValid(email: String) = email.matches(emailPattern)
 
-    return ds
-}
+private val phonePattern = "\\d{11}|\\d{7,8}".toRegex()
+internal fun phoneValid(phone: String) = phone.matches(phonePattern)

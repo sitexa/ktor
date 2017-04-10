@@ -17,7 +17,8 @@
     <a href="javascript:void(0)" onclick="document.getElementById('deleteForm').submit()">Delete sweet</a>
 </p>
 
-<form id="deleteForm" method="post" action="/sweet/${sweet.id}/delete" enctype="application/x-www-form-urlencoded">
+<form id="deleteForm" method="post" action="/sweet-del" enctype="application/x-www-form-urlencoded">
+    <input type="hidden" name="id" value="${sweet.id}">
     <input type="hidden" name="date" value="${date?c}">
     <input type="hidden" name="code" value="${code}">
 </form>
