@@ -1,9 +1,23 @@
 package com.sitexa.sweet.dao
 
 import com.sitexa.sweet.model.*
+import com.zaxxer.hikari.HikariDataSource
 import org.jetbrains.exposed.sql.*
 import org.joda.time.*
 import java.io.*
+
+
+fun getDataSource(): HikariDataSource {
+    val ds = HikariDataSource()
+    ds.maximumPoolSize = 20
+    ds.driverClassName = "org.mariadb.jdbc.Driver"
+    ds.jdbcUrl = "jdbc:mysql://localhost:3306/sitexa"
+    ds.isAutoCommit = false
+    ds.addDataSourceProperty("user", "root")
+    ds.addDataSourceProperty("password", "pop007")
+    ds.addDataSourceProperty("dialect", "MysqlDialect")
+    return ds
+}
 
 interface DAOFacade : Closeable {
     fun init()

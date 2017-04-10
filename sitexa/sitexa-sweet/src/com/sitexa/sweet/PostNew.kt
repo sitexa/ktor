@@ -13,7 +13,7 @@ import org.jetbrains.ktor.sessions.*
  */
 
 fun Route.postNew(dao: DAOFacade, hashFunction: (String) -> String) {
-    get<PostNew> {
+    get<SweetNew> {
         val user = call.sessionOrNull<Session>()?.let { dao.user(it.userId) }
 
         if (user == null) {
@@ -25,13 +25,13 @@ fun Route.postNew(dao: DAOFacade, hashFunction: (String) -> String) {
             call.respond(FreeMarkerContent("new-sweet.ftl", mapOf("user" to user, "date" to date, "code" to code), user.userId))
         }
     }
-    post<PostNew> {
+    post<SweetNew> {
         val user = call.sessionOrNull<Session>()?.let { dao.user(it.userId) }
         if (user == null || !call.verifyCode(it.date, user, it.code, hashFunction)) {
             call.redirect(Login())
         } else {
             val id = dao.createSweet(user.userId, it.text, null)
-            call.redirect(ViewSweet(id))
+            call.redirect(SweetView(id))
         }
     }
 }
