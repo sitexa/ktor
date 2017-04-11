@@ -5,7 +5,6 @@ import org.jetbrains.ktor.application.call
 import org.jetbrains.ktor.freemarker.FreeMarkerContent
 import org.jetbrains.ktor.locations.get
 import org.jetbrains.ktor.locations.post
-import org.jetbrains.ktor.response.respondText
 import org.jetbrains.ktor.routing.Route
 import org.jetbrains.ktor.sessions.sessionOrNull
 
@@ -59,12 +58,27 @@ fun Route.viewSweet(dao: DAOFacade, hashFunction: (String) -> String) {
         val date = System.currentTimeMillis()
         val code = if (user != null) call.securityCode(date, user, hashFunction) else null
 
+        println("viewSweet-code:$code")
+
         call.respond(FreeMarkerContent("sweet-view.ftl", mapOf("user" to user, "sweet" to dao.getSweet(it.id), "date" to date, "code" to code), user?.userId ?: ""))
     }
 }
 
 fun Route.updSweet(dao: DAOFacade, hashFunction: (String) -> String) {
+    get<SweetUpd> {
+        val user = call.sessionOrNull<Session>()?.let { dao.user(it.userId) }
+        val date = System.currentTimeMillis()
+        val code = if (user != null) call.securityCode(date, user, hashFunction) else null
+
+        call.respond(FreeMarkerContent("sweet-upd.ftl", mapOf("user" to user, "sweet" to dao.getSweet(it.id), "date" to date, "code" to code), user?.userId ?: ""))
+    }
     post<SweetUpd> {
-        call.respondText("post")
+        val user = call.sessionOrNull<Session>()?.let { dao.user(it.userId) }
+        if (user == null || !call.verifyCode(it.date, user, it.code, hashFunction)) {
+            call.redirect(Login())
+        } else {
+            dao.updateSweet(user.userId, it.id, it.text, null)
+            call.redirect(SweetView(it.id))
+        }
     }
 }
