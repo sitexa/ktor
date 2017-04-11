@@ -24,6 +24,7 @@ interface DAOFacade : Closeable {
     fun countReplies(id: Int): Int
     fun createSweet(user: String, text: String, replyTo: Int? = null, date: DateTime = DateTime.now()): Int
     fun deleteSweet(id: Int)
+    fun updateSweet(user: String, id: Int, text: String, replyTo: Int? = null, date: DateTime = DateTime.now())
     fun getSweet(id: Int): Sweet
     fun userSweets(userId: String): List<Int>
     fun user(userId: String, hash: String? = null): User?
@@ -62,9 +63,19 @@ class DAOFacadeDatabase(val db: Database) : DAOFacade {
     }
 
     override fun deleteSweet(id: Int) {
-        println("delete sweet:${id}")
         db.transaction {
             Sweets.deleteWhere { Sweets.id.eq(id) }
+        }
+    }
+
+    override fun updateSweet(user: String, id: Int, text: String, replyTo: Int?, date: DateTime) {
+        db.transaction {
+            Sweets.update({Sweets.id eq id}){
+                it[Sweets.user] = user
+                it[Sweets.date] = date
+                it[Sweets.text] = text
+                it[Sweets.replyTo] = replyTo
+            }
         }
     }
 
