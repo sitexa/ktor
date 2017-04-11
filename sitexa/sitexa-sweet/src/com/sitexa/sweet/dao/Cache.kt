@@ -60,6 +60,12 @@ class DAOFacadeCache(val delegate: DAOFacade, val storagePath: File) : DAOFacade
         sweetsCache.remove(id)
     }
 
+    override fun updateSweet(user: String, id: Int, text: String, replyTo: Int?, date: DateTime) {
+        delegate.updateSweet(user, id, text, replyTo, date)
+        val sweet = Sweet(id, user, text, date, replyTo)
+        sweetsCache.replace(id, sweet)
+    }
+
     override fun getSweet(id: Int): Sweet {
         val cached = sweetsCache.get(id)
         if (cached != null) {
