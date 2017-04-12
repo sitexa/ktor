@@ -3,6 +3,8 @@ package com.sitexa.sweet.dao
 import com.sitexa.sweet.model.*
 import com.zaxxer.hikari.HikariDataSource
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.SchemaUtils.create
 import org.joda.time.*
 import java.io.*
 
@@ -26,7 +28,9 @@ interface DAOFacade : Closeable {
     fun deleteSweet(id: Int)
     fun updateSweet(user: String, id: Int, text: String, replyTo: Int? = null, date: DateTime = DateTime.now())
     fun getSweet(id: Int): Sweet
+    fun getReplies(id: Int): List<Int>
     fun userSweets(userId: String): List<Int>
+
     fun user(userId: String, hash: String? = null): User?
     fun userByEmail(email: String): User?
     fun userByMobile(mobile: String): User?
@@ -38,13 +42,13 @@ interface DAOFacade : Closeable {
 class DAOFacadeDatabase(val db: Database) : DAOFacade {
 
     override fun init() {
-        db.transaction {
+        transaction {
             create(Users, Sweets)
         }
     }
 
     override fun countReplies(id: Int): Int {
-        return db.transaction {
+        return transaction {
             Sweets.slice(Sweets.id.count()).select {
                 Sweets.replyTo.eq(id)
             }.single()[Sweets.id.count()]
@@ -52,25 +56,25 @@ class DAOFacadeDatabase(val db: Database) : DAOFacade {
     }
 
     override fun createSweet(user: String, text: String, replyTo: Int?, date: DateTime): Int {
-        return db.transaction {
+        return transaction {
             Sweets.insert {
                 it[Sweets.user] = user
                 it[Sweets.date] = date
                 it[Sweets.replyTo] = replyTo
                 it[Sweets.text] = text
-            }.generatedKey ?: throw IllegalStateException("No generated key returned")
+            } get Sweets.id
         }
     }
 
     override fun deleteSweet(id: Int) {
-        db.transaction {
+        transaction {
             Sweets.deleteWhere { Sweets.id.eq(id) }
         }
     }
 
     override fun updateSweet(user: String, id: Int, text: String, replyTo: Int?, date: DateTime) {
-        db.transaction {
-            Sweets.update({Sweets.id eq id}){
+        transaction {
+            Sweets.update({ Sweets.id eq id }) {
                 it[Sweets.user] = user
                 it[Sweets.date] = date
                 it[Sweets.text] = text
@@ -79,16 +83,22 @@ class DAOFacadeDatabase(val db: Database) : DAOFacade {
         }
     }
 
-    override fun getSweet(id: Int) = db.transaction {
+    override fun getSweet(id: Int) = transaction {
         val row = Sweets.select { Sweets.id.eq(id) }.single()
         Sweet(id, row[Sweets.user], row[Sweets.text], row[Sweets.date], row[Sweets.replyTo])
     }
 
-    override fun userSweets(userId: String) = db.transaction {
-        Sweets.slice(Sweets.id).select { Sweets.user.eq(userId) }.orderBy(Sweets.date, false).limit(100).map { it[Sweets.id] }
+    override fun getReplies(id: Int) = transaction {
+        Sweets.slice(Sweets.id).select { Sweets.replyTo.eq(id) }
+                .orderBy(Sweets.date, false).limit(100).map { it[Sweets.id] }
     }
 
-    override fun user(userId: String, hash: String?) = db.transaction {
+    override fun userSweets(userId: String) = transaction {
+        Sweets.slice(Sweets.id).select { Sweets.user.eq(userId) and Sweets.replyTo.isNull() }
+                .orderBy(Sweets.date, false).limit(100).map { it[Sweets.id] }
+    }
+
+    override fun user(userId: String, hash: String?) = transaction {
         Users.select { Users.id.eq(userId) }
                 .mapNotNull {
                     if (hash == null || it[Users.passwordHash] == hash) {
@@ -100,17 +110,17 @@ class DAOFacadeDatabase(val db: Database) : DAOFacade {
                 .singleOrNull()
     }
 
-    override fun userByMobile(mobile: String) = db.transaction {
+    override fun userByMobile(mobile: String) = transaction {
         Users.select { Users.mobile.eq(mobile) }
                 .map { User(it[Users.id], mobile, it[Users.email], it[Users.displayName], it[Users.passwordHash]) }.singleOrNull()
     }
 
-    override fun userByEmail(email: String) = db.transaction {
+    override fun userByEmail(email: String) = transaction {
         Users.select { Users.email.eq(email) }
                 .map { User(it[Users.id], it[Users.mobile], email, it[Users.displayName], it[Users.passwordHash]) }.singleOrNull()
     }
 
-    override fun createUser(user: User) = db.transaction {
+    override fun createUser(user: User) = transaction {
         Users.insert {
             it[Users.id] = user.userId
             it[Users.displayName] = user.displayName
@@ -121,7 +131,7 @@ class DAOFacadeDatabase(val db: Database) : DAOFacade {
         Unit
     }
 
-    override fun top(count: Int): List<Int> = db.transaction {
+    override fun top(count: Int): List<Int> = transaction {
         // note: in a real application you shouldn't do it like this
         //   as it may cause database outages on big data
         //   so this implementation is just for demo purposes
@@ -132,12 +142,18 @@ class DAOFacadeDatabase(val db: Database) : DAOFacade {
                 .selectAll()
                 .groupBy(Sweets.id)
                 .orderBy(k2[Sweets.id].count(), isAsc = false)
-//                .having { k2[Sweets.id].count().greater(0) }
+                .having { k2[Sweets.id].count().greater(0) }
                 .limit(count)
                 .map { it[Sweets.id] }
     }
 
-    override fun latest(count: Int): List<Int> = db.transaction {
+    override fun latest(count: Int) = transaction {
+        Sweets.slice(Sweets.id).select { Sweets.replyTo.isNull() }
+                .orderBy(Sweets.date, false)
+                .limit(count).map { it[Sweets.id] }
+    }
+
+    fun latest2(count: Int): List<Int> = transaction {
         var attempt = 0
         var allCount: Int? = null
 
@@ -147,7 +163,7 @@ class DAOFacadeDatabase(val db: Database) : DAOFacade {
             val dt = DateTime.now().minusMinutes(minutes)
 
             val all = Sweets.slice(Sweets.id)
-                    .select { Sweets.date.greater(dt) }
+                    .select { Sweets.date.greater(dt) and Sweets.replyTo.isNull() }
                     .orderBy(Sweets.date, false)
                     .limit(count)
                     .map { it[Sweets.id] }

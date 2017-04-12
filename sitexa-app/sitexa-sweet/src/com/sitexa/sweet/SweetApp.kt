@@ -45,21 +45,6 @@ import javax.crypto.spec.SecretKeySpec
 @location("/")
 class Index
 
-
-@location("/sweet/{id}")
-data class SweetView(val id: Int)
-
-@location("/sweet-new")
-data class SweetNew(val text: String = "", val date: Long = 0L, val code: String = "")
-
-//set default values to the data class!!!
-@location("/sweet-del")
-data class SweetDel(val id: Int = 0, val date: Long = 0L, val code: String = "")
-
-@location("/sweet-upd")
-data class SweetUpd(val id: Int = 0, val text: String = "", val date: Long = 0L, val code: String = "")
-
-
 @location("/user/{user}")
 data class UserPage(val user: String)
 
@@ -114,6 +99,7 @@ class SweetApp : AutoCloseable {
             delSweet(dao, hashFunction)
             viewSweet(dao, hashFunction)
             updSweet(dao, hashFunction)
+            replySweet(dao, hashFunction)
 
             login(dao, hashFunction)
             register(dao, hashFunction)
