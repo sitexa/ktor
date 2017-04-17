@@ -50,8 +50,9 @@
 <section class="post">
     <header class="post-header">
         <p class="post-meta">
+            ${sweet.userId}
             <a href="/sweet/${sweet.id}">${sweet.date.toDate()?string("yyyy.MM.dd HH:mm:ss")}</a>
-            by ${sweet.userId}</p>
+            </p>
     </header>
     <div class="post-description">${sweet.text}</div>
 </section>
