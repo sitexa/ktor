@@ -15,4 +15,5 @@ object Sweets : Table() {
     val replyTo = integer("reply_to").index().nullable()
     val directReplyTo = integer("direct_reply_to").index().nullable()
     val text = varchar("text", 1024)
+    val mediaFile = varchar("media_file", 1024).nullable()
 }

@@ -12,6 +12,7 @@ import org.jetbrains.ktor.application.Application
 import org.jetbrains.ktor.application.ApplicationCall
 import org.jetbrains.ktor.application.feature
 import org.jetbrains.ktor.application.install
+import org.jetbrains.ktor.content.serveClasspathResources
 import org.jetbrains.ktor.features.ConditionalHeaders
 import org.jetbrains.ktor.features.DefaultHeaders
 import org.jetbrains.ktor.features.PartialContentSupport
@@ -100,6 +101,7 @@ class SweetApp : AutoCloseable {
             viewSweet(dao, hashFunction)
             updSweet(dao, hashFunction)
             replySweet(dao, hashFunction)
+            mediaStream()
 
             login(dao, hashFunction)
             register(dao, hashFunction)

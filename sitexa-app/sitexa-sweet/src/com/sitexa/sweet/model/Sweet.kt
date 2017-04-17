@@ -8,4 +8,4 @@ import java.io.Serializable
  *
  */
 
-data class Sweet(val id: Int, val userId: String, val text: String, val date: DateTime, val replyTo: Int?) : Serializable
+data class Sweet(val id: Int, val userId: String, val text: String, val mediaFile: String?, var mediaType: String?, val date: DateTime, val replyTo: Int?) : Serializable
