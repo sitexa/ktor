@@ -1,4 +1,4 @@
-package com.sitexa.sweet;
+package test;
 
 import java.util.Objects;
 import java.util.concurrent.Callable;
