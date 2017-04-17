@@ -5,19 +5,41 @@
 <section class="post">
     <header class="post-header">
         <p class="post-meta">
+        ${sweet.userId}
             <span>${sweet.date.toDate()?string("yyyy.MM.dd HH:mm:ss")}</span>
-            by ${sweet.userId}</p>
+        </p>
     </header>
     <div class="post-description">${sweet.text}</div>
-    <section class="post">
-        <div class="post-description">
-            <#list replies as reply>
-                <p class="post-meta">
-                ${reply.date.toDate()?string("yyyy.MM.dd HH:mm:ss")} by ${reply.userId}</p>
-            ${reply.text}
-            </#list>
+    <#if sweet.mediaFile??>
+        <#if sweet.mediaType="image">
+            <div class="post-images">
+                <img class="post-images" src="/media/${sweet.mediaFile}"/>
+            </div>
+        <#elseif  sweet.mediaType="video">
+            <video width="400" controls>
+                <source src="/media/${sweet.mediaFile}" type="video/mp4">
+                Your browser does not support HTML5 video.
+            </video>
+        <#elseif sweet.mediaType="audio">
+            <audio controls>
+                <source src="/media/${sweet.mediaFile}" type="audio/ogg">
+                Your browser does not support the audio element.
+            </audio>
+        </#if>
+
+    </#if>
+</section>
+<section class="reply">
+    <#list replies as reply>
+        <header class="reply-header">
+            <p class="reply-meta">
+            ${reply.userId}
+                <span>${reply.date.toDate()?string("yyyy.MM.dd HH:mm:ss")}</span></p>
+        </header>
+        <div class="reply-description">
+        ${reply.text}
         </div>
-    </section>
+    </#list>
 </section>
 
     <#if user??>
