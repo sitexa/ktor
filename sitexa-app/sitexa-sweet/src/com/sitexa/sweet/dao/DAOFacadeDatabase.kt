@@ -24,7 +24,7 @@ fun getDataSource(): HikariDataSource {
 interface DAOFacade : Closeable {
     fun init()
     fun countReplies(id: Int): Int
-    fun createSweet(user: String, text: String, replyTo: Int? = null, date: DateTime = DateTime.now()): Int
+    fun createSweet(user: String, text: String, mediaFile: String? = null, replyTo: Int? = null, date: DateTime = DateTime.now()): Int
     fun deleteSweet(id: Int)
     fun updateSweet(user: String, id: Int, text: String, replyTo: Int? = null, date: DateTime = DateTime.now())
     fun getSweet(id: Int): Sweet
@@ -55,13 +55,14 @@ class DAOFacadeDatabase(val db: Database) : DAOFacade {
         }
     }
 
-    override fun createSweet(user: String, text: String, replyTo: Int?, date: DateTime): Int {
+    override fun createSweet(user: String, text: String, mediaFile: String?, replyTo: Int?, date: DateTime): Int {
         return transaction {
             Sweets.insert {
                 it[Sweets.user] = user
                 it[Sweets.date] = date
                 it[Sweets.replyTo] = replyTo
                 it[Sweets.text] = text
+                it[Sweets.mediaFile] = mediaFile
             } get Sweets.id
         }
     }
@@ -85,7 +86,7 @@ class DAOFacadeDatabase(val db: Database) : DAOFacade {
 
     override fun getSweet(id: Int) = transaction {
         val row = Sweets.select { Sweets.id.eq(id) }.single()
-        Sweet(id, row[Sweets.user], row[Sweets.text], row[Sweets.date], row[Sweets.replyTo])
+        Sweet(id, row[Sweets.user], row[Sweets.text], row[Sweets.mediaFile], null, row[Sweets.date], row[Sweets.replyTo])
     }
 
     override fun getReplies(id: Int) = transaction {

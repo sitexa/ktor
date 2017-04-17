@@ -48,9 +48,9 @@ class DAOFacadeCache(val delegate: DAOFacade, val storagePath: File) : DAOFacade
         return delegate.countReplies(id)
     }
 
-    override fun createSweet(user: String, text: String, replyTo: Int?, date: DateTime): Int {
-        val id = delegate.createSweet(user, text, replyTo)
-        val sweet = Sweet(id, user, text, date, replyTo)
+    override fun createSweet(user: String, text: String, mediaFile: String?, replyTo: Int?, date: DateTime): Int {
+        val id = delegate.createSweet(user, text, mediaFile, replyTo)
+        val sweet = Sweet(id, user, text, mediaFile,null, date, replyTo)
         sweetsCache.put(id, sweet)
         return id
     }

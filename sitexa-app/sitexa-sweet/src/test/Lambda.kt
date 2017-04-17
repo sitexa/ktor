@@ -1,4 +1,4 @@
-package com.sitexa.sweet
+package test
 
 import java.util.Arrays
 import javax.print.attribute.IntegerSyntax
