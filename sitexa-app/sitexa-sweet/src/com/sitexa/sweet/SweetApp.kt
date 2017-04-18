@@ -1,6 +1,7 @@
 package com.sitexa.sweet
 
 
+import com.google.gson.GsonBuilder
 import com.sitexa.sweet.dao.DAOFacade
 import com.sitexa.sweet.dao.DAOFacadeCache
 import com.sitexa.sweet.dao.DAOFacadeDatabase
@@ -8,19 +9,18 @@ import com.sitexa.sweet.dao.getDataSource
 import com.sitexa.sweet.model.User
 import freemarker.cache.ClassTemplateLoader
 import org.jetbrains.exposed.sql.Database
-import org.jetbrains.ktor.application.Application
-import org.jetbrains.ktor.application.ApplicationCall
-import org.jetbrains.ktor.application.feature
-import org.jetbrains.ktor.application.install
-import org.jetbrains.ktor.content.serveClasspathResources
+import org.jetbrains.ktor.application.*
+import org.jetbrains.ktor.content.TextContent
 import org.jetbrains.ktor.features.ConditionalHeaders
 import org.jetbrains.ktor.features.DefaultHeaders
 import org.jetbrains.ktor.features.PartialContentSupport
 import org.jetbrains.ktor.freemarker.FreeMarker
+import org.jetbrains.ktor.http.ContentType
 import org.jetbrains.ktor.http.HttpHeaders
 import org.jetbrains.ktor.locations.Locations
 import org.jetbrains.ktor.locations.location
 import org.jetbrains.ktor.logging.CallLogging
+import org.jetbrains.ktor.request.acceptItems
 import org.jetbrains.ktor.request.header
 import org.jetbrains.ktor.request.host
 import org.jetbrains.ktor.request.port
@@ -30,6 +30,7 @@ import org.jetbrains.ktor.sessions.SessionCookieTransformerMessageAuthentication
 import org.jetbrains.ktor.sessions.SessionCookiesSettings
 import org.jetbrains.ktor.sessions.withCookieByValue
 import org.jetbrains.ktor.sessions.withSessions
+import org.jetbrains.ktor.transform.transform
 import org.jetbrains.ktor.util.hex
 import java.io.File
 import java.net.URI
@@ -58,6 +59,8 @@ data class Login(val userId: String = "", val password: String = "", val error: 
 @location("/logout")
 class Logout
 
+class JsonResponse(val data: Any)
+
 data class Session(val userId: String)
 
 
@@ -73,7 +76,6 @@ class SweetApp : AutoCloseable {
 
     fun Application.install() {
         dao.init()
-
         install(DefaultHeaders)
         install(CallLogging)
         install(ConditionalHeaders)
@@ -91,17 +93,22 @@ class SweetApp : AutoCloseable {
 
         val hashFunction = { s: String -> hash(s) }
 
+        val gson = GsonBuilder().create()
+        intercept(ApplicationCallPipeline.Infrastructure) { call ->
+            if (call.request.acceptItems().any { it.value == "application/json" }) {
+                call.transform.register<JsonResponse> { value ->
+                    TextContent(gson.toJson(value.data), ContentType.Application.Json)
+                }
+            }
+        }
+
         install(Routing) {
+
             styles()
             index(dao)
             userPage(dao)
 
-            newSweet(dao, hashFunction)
-            delSweet(dao, hashFunction)
-            viewSweet(dao, hashFunction)
-            updSweet(dao, hashFunction)
-            replySweet(dao, hashFunction)
-            mediaStream()
+            sweetRouting(dao,hashFunction)
 
             login(dao, hashFunction)
             register(dao, hashFunction)

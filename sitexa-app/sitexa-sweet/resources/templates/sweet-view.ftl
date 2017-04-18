@@ -2,6 +2,7 @@
 
 <@layout.mainLayout title="View sweet">
 
+<#-- @ftlvariable name="media" type="com.sitexa.sweet.model.Media" -->
 <section class="post">
     <header class="post-header">
         <p class="post-meta">
@@ -10,24 +11,24 @@
         </p>
     </header>
     <div class="post-description">${sweet.text}</div>
-    <#if sweet.mediaFile??>
-        <#if sweet.mediaType="image">
+    <#list medias as media>
+        <#if media.fileType="image">
             <div class="post-images">
-                <img class="post-images" src="/media/${sweet.mediaFile}"/>
+                <img class="post-images" src="/media/${media.fileName}/${media.fileType}"/>
             </div>
-        <#elseif  sweet.mediaType="video">
+        <#elseif  media.fileType="video">
             <video width="400" controls>
-                <source src="/media/${sweet.mediaFile}" type="video/mp4">
+                <source src="/media/${media.fileName}/${media.fileType}" type="video/mp4">
                 Your browser does not support HTML5 video.
             </video>
-        <#elseif sweet.mediaType="audio">
+        <#elseif media.fileType="audio">
             <audio controls>
-                <source src="/media/${sweet.mediaFile}" type="audio/ogg">
+                <source src="/media/${media.fileName}/${media.fileType}" type="audio/ogg">
                 Your browser does not support the audio element.
             </audio>
         </#if>
 
-    </#if>
+    </#list>
 </section>
 <section class="reply">
     <#list replies as reply>

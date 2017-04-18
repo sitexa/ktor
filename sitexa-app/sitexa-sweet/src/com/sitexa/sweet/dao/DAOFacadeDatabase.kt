@@ -1,5 +1,6 @@
 package com.sitexa.sweet.dao
 
+import com.sitexa.sweet.dbConfig
 import com.sitexa.sweet.model.*
 import com.zaxxer.hikari.HikariDataSource
 import org.jetbrains.exposed.sql.*
@@ -11,25 +12,30 @@ import java.io.*
 
 fun getDataSource(): HikariDataSource {
     val ds = HikariDataSource()
-    ds.maximumPoolSize = 20
-    ds.driverClassName = "org.mariadb.jdbc.Driver"
-    ds.jdbcUrl = "jdbc:mysql://localhost:3306/sitexa"
-    ds.isAutoCommit = false
-    ds.addDataSourceProperty("user", "root")
-    ds.addDataSourceProperty("password", "pop007")
-    ds.addDataSourceProperty("dialect", "MysqlDialect")
+    ds.maximumPoolSize = dbConfig["pool"].toString().toInt()
+    ds.driverClassName = dbConfig["driver"].toString()
+    ds.jdbcUrl = dbConfig["url"].toString()
+    ds.isAutoCommit = dbConfig["autoCommit"].toString().toBoolean()
+    ds.addDataSourceProperty("user", dbConfig["user"].toString())
+    ds.addDataSourceProperty("password", dbConfig["password"].toString())
+    ds.addDataSourceProperty("dialect", dbConfig["dialect"].toString())
     return ds
 }
 
 interface DAOFacade : Closeable {
     fun init()
     fun countReplies(id: Int): Int
-    fun createSweet(user: String, text: String, mediaFile: String? = null, replyTo: Int? = null, date: DateTime = DateTime.now()): Int
+    fun createSweet(user: String, text: String, replyTo: Int? = null, date: DateTime = DateTime.now()): Int
     fun deleteSweet(id: Int)
     fun updateSweet(user: String, id: Int, text: String, replyTo: Int? = null, date: DateTime = DateTime.now())
     fun getSweet(id: Int): Sweet
     fun getReplies(id: Int): List<Int>
     fun userSweets(userId: String): List<Int>
+
+    fun createMedia(refId: Int? = -1, fileName: String, fileType: String? = "unknown", title: String? = null, sortOrder: Int? = 0): Int
+    fun deleteMedia(id: Int)
+    fun getMedia(id: Int): Media?
+    fun getMedias(refId: Int): List<Int>
 
     fun user(userId: String, hash: String? = null): User?
     fun userByEmail(email: String): User?
@@ -43,7 +49,7 @@ class DAOFacadeDatabase(val db: Database) : DAOFacade {
 
     override fun init() {
         transaction {
-            create(Users, Sweets)
+            create(Users, Sweets, Medias)
         }
     }
 
@@ -55,14 +61,13 @@ class DAOFacadeDatabase(val db: Database) : DAOFacade {
         }
     }
 
-    override fun createSweet(user: String, text: String, mediaFile: String?, replyTo: Int?, date: DateTime): Int {
+    override fun createSweet(user: String, text: String, replyTo: Int?, date: DateTime): Int {
         return transaction {
             Sweets.insert {
                 it[Sweets.user] = user
                 it[Sweets.date] = date
                 it[Sweets.replyTo] = replyTo
                 it[Sweets.text] = text
-                it[Sweets.mediaFile] = mediaFile
             } get Sweets.id
         }
     }
@@ -86,7 +91,7 @@ class DAOFacadeDatabase(val db: Database) : DAOFacade {
 
     override fun getSweet(id: Int) = transaction {
         val row = Sweets.select { Sweets.id.eq(id) }.single()
-        Sweet(id, row[Sweets.user], row[Sweets.text], row[Sweets.mediaFile], null, row[Sweets.date], row[Sweets.replyTo])
+        Sweet(id, row[Sweets.user], row[Sweets.text], row[Sweets.date], row[Sweets.replyTo])
     }
 
     override fun getReplies(id: Int) = transaction {
@@ -98,6 +103,38 @@ class DAOFacadeDatabase(val db: Database) : DAOFacade {
         Sweets.slice(Sweets.id).select { Sweets.user.eq(userId) and Sweets.replyTo.isNull() }
                 .orderBy(Sweets.date, false).limit(100).map { it[Sweets.id] }
     }
+
+    override fun createMedia(refId: Int?, fileName: String, fileType: String?, title: String?, sortOrder: Int?): Int {
+        return transaction {
+            Medias.insert {
+                it[Medias.refId] = refId
+                it[Medias.fileName] = fileName
+                it[Medias.fileType] = fileType
+                it[Medias.title] = title
+                it[Medias.sortOrder] = sortOrder
+            } get Medias.id
+        }
+    }
+
+    override fun deleteMedia(id: Int) {
+        transaction {
+            Medias.deleteWhere { Medias.id.eq(id) }
+        }
+    }
+
+    override fun getMedia(id: Int) = transaction {
+        Medias.select { Medias.id.eq(id) }
+                .mapNotNull { row -> Media(row[Medias.id], row[Medias.refId], row[Medias.fileName], row[Medias.fileType], row[Medias.title], row[Medias.sortOrder]) }
+                .singleOrNull()
+    }
+
+    override fun getMedias(refId: Int) = transaction {
+        Medias.slice(Medias.id).select { Medias.refId.eq(refId) }
+                .orderBy(Medias.sortOrder, false)
+                .limit(100)
+                .map { it[Medias.id] }
+    }
+
 
     override fun user(userId: String, hash: String?) = transaction {
         Users.select { Users.id.eq(userId) }

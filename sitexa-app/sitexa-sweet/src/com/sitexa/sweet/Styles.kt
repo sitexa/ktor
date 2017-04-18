@@ -11,10 +11,12 @@ import org.jetbrains.ktor.routing.*
  */
 
 @location("/styles/main.css")
-class MainCss()
+class MainCss
 
 fun Route.styles() {
-    get<MainCss> {
+
+    get<MainCss>{
         call.respond(call.resolveClasspathWithPath("", "sweet.css")!!)
     }
+
 }

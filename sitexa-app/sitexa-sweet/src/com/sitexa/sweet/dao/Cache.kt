@@ -34,11 +34,21 @@ class DAOFacadeCache(val delegate: DAOFacade, val storagePath: File) : DAOFacade
                                     .disk(100, MemoryUnit.MB, true)
                             )
                             .buildConfig(String::class.java, User::class.java))
+            .withCache("mediasCache",
+                    CacheConfigurationBuilder.newCacheConfigurationBuilder<Int, Media>()
+                            .withResourcePools(ResourcePoolsBuilder.newResourcePoolsBuilder()
+                                    .heap(1000, EntryUnit.ENTRIES)
+                                    .offheap(10, MemoryUnit.MB)
+                                    .disk(100, MemoryUnit.MB, true)
+                            )
+                            .buildConfig(Int::class.javaObjectType, Media::class.java))
             .build(true)
 
     val sweetsCache = cacheManager.getCache("sweetsCache", Int::class.javaObjectType, Sweet::class.java)
 
     val usersCache = cacheManager.getCache("usersCache", String::class.java, User::class.java)
+
+    val mediasCache = cacheManager.getCache("mediasCache", Int::class.javaObjectType, Media::class.java)
 
     override fun init() {
         delegate.init()
@@ -48,9 +58,9 @@ class DAOFacadeCache(val delegate: DAOFacade, val storagePath: File) : DAOFacade
         return delegate.countReplies(id)
     }
 
-    override fun createSweet(user: String, text: String, mediaFile: String?, replyTo: Int?, date: DateTime): Int {
-        val id = delegate.createSweet(user, text, mediaFile, replyTo)
-        val sweet = Sweet(id, user, text, mediaFile,null, date, replyTo)
+    override fun createSweet(user: String, text: String, replyTo: Int?, date: DateTime): Int {
+        val id = delegate.createSweet(user, text, replyTo, date)
+        val sweet = Sweet(id, user, text, date, replyTo)
         sweetsCache.put(id, sweet)
         return id
     }
@@ -83,6 +93,31 @@ class DAOFacadeCache(val delegate: DAOFacade, val storagePath: File) : DAOFacade
 
     override fun userSweets(userId: String): List<Int> {
         return delegate.userSweets(userId)
+    }
+
+    override fun createMedia(refId: Int?, fileName: String, fileType: String?, title: String?, sortOrder: Int?): Int {
+        val id = delegate.createMedia(refId, fileName, fileType, title, sortOrder)
+        val media = Media(id, refId, fileName, fileType, title, sortOrder)
+        mediasCache.put(id, media)
+        return id
+    }
+
+    override fun deleteMedia(id: Int) {
+        delegate.deleteMedia(id)
+        mediasCache.remove(id)
+    }
+
+    override fun getMedia(id: Int): Media? {
+        val cached = mediasCache.get(id)
+        if (cached != null) return cached
+
+        val media = delegate.getMedia(id)
+        mediasCache.put(id, media)
+        return media
+    }
+
+    override fun getMedias(refId: Int): List<Int> {
+        return delegate.getMedias(refId)
     }
 
     override fun user(userId: String, hash: String?): User? {
