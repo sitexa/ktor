@@ -3,13 +3,12 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.jetbrains.ktor</groupId>
-    <version>0.3.2-SNAPSHOT</version>
+    <version>0.3.1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <artifactId>ktor</artifactId>
 
     <properties>
         <kotlin.version>1.1.1</kotlin.version>
-        <coroutines.version>0.14</coroutines.version>
         <dokka.version>0.9.13</dokka.version>
         <jmh.version>1.17.5</jmh.version>
 
@@ -65,8 +64,8 @@
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlinx</groupId>
-            <artifactId>kotlinx-coroutines-core</artifactId>
-            <version>${coroutines.version}</version>
+            <artifactId>kotlinx-coroutines-jdk8</artifactId>
+            <version>0.14</version>
         </dependency>
 
         <dependency>
@@ -208,7 +207,7 @@
                     <sourceLinks>
                         <link>
                             <dir>${project.basedir}/src</dir>
-                            <url>https://github.com/Kotlin/ktor</url>
+                            <url>http://github.com/Kotlin/ktor</url>
                         </link>
                     </sourceLinks>
                 </configuration>
@@ -243,7 +242,7 @@
     <pluginRepositories>
         <pluginRepository>
             <id>jcenter</id>
-            <url>https://jcenter.bintray.com</url>
+            <url>http://jcenter.bintray.com</url>
         </pluginRepository>
         <pluginRepository>
             <id>devexperts-maven</id>
@@ -253,7 +252,7 @@
     <repositories>
         <repository>
             <id>jcenter</id>
-            <url>https://jcenter.bintray.com</url>
+            <url>http://jcenter.bintray.com</url>
         </repository>
         <repository>
             <snapshots>
@@ -261,7 +260,7 @@
             </snapshots>
             <id>bintray-kotlin-eap-1.1</id>
             <name>bintray</name>
-            <url>https://dl.bintray.com/kotlin/kotlin-eap-1.1</url>
+            <url>http://dl.bintray.com/kotlin/kotlin-eap-1.1</url>
         </repository>
     </repositories>
 </project>

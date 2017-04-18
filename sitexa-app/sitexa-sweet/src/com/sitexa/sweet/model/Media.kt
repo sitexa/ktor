@@ -7,4 +7,9 @@ import java.io.Serializable
  *
  */
 
-data class Media(val id: Int, val refId: Int, val fileName: String, val fileType: String, val title: String, val sortOrder: Int): Serializable
+data class Media(val id: Int,
+                 val refId: Int? = -1,
+                 val fileName: String,
+                 val fileType: String? = "unknown",
+                 val title: String? = null,
+                 val sortOrder: Int? = 0) : Serializable

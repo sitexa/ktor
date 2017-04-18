@@ -1,12 +1,12 @@
 package com.sitexa.sweet
 
 import com.sitexa.sweet.dao.DAOFacade
+import com.sitexa.sweet.model.Media
 import org.jetbrains.ktor.application.call
 import org.jetbrains.ktor.application.receive
 import org.jetbrains.ktor.content.LocalFileContent
-import org.jetbrains.ktor.features.ContentTypeByExtension
 import org.jetbrains.ktor.freemarker.FreeMarkerContent
-import org.jetbrains.ktor.http.HttpStatusCode
+import org.jetbrains.ktor.http.ContentType
 import org.jetbrains.ktor.locations.get
 import org.jetbrains.ktor.locations.location
 import org.jetbrains.ktor.locations.post
@@ -22,8 +22,11 @@ import java.io.File
  *
  */
 
-@location("/media/{url}")
-data class MediaStream(val url: String = "")
+@location("/upload")
+class Upload()
+
+@location("/media/{name}/{type}")
+data class MediaView(val name: String, val type: String)
 
 @location("/sweet/{id}")
 data class SweetView(val id: Int)
@@ -41,9 +44,7 @@ data class SweetUpd(val id: Int = 0, val text: String = "", val date: Long = 0L,
 @location("/sweet-reply")
 data class SweetReply(val replyTo: Int = 0, val text: String = "", val date: Long = 0L, val code: String = "")
 
-val uploadDir = "/Users/open/IdeaProjects/sweet/sitexa-app/sitexa-sweet/uploads"
-
-fun Route.newSweet(dao: DAOFacade, hashFunction: (String) -> String) {
+fun Route.sweetRouting(dao: DAOFacade, hashFunction: (String) -> String){
     get<SweetNew> {
         val user = call.sessionOrNull<Session>()?.let { dao.user(it.userId) }
 
@@ -64,7 +65,6 @@ fun Route.newSweet(dao: DAOFacade, hashFunction: (String) -> String) {
             var date: Long = 0L
             var code: String = ""
             var text: String = ""
-            var uploadedFile: File? = null
 
             val multipart = call.request.receive<MultiPartData>()
 
@@ -85,7 +85,6 @@ fun Route.newSweet(dao: DAOFacade, hashFunction: (String) -> String) {
                             file.outputStream().buffered().use { outstream ->
                                 instream.copyTo(outstream)
                             }
-                            uploadedFile = file
                         }
                     }
                     part.dispose()
@@ -95,16 +94,12 @@ fun Route.newSweet(dao: DAOFacade, hashFunction: (String) -> String) {
             if (!call.verifyCode(date, user, code, hashFunction)) {
                 call.redirect(Index())
             } else {
-                val id = dao.createSweet(user.userId, text, uploadedFile?.name, null)
+                val id = dao.createSweet(user.userId, text)
 
                 call.redirect(SweetView(id))
             }
         }
     }
-}
-
-
-fun Route.delSweet(dao: DAOFacade, hashFunction: (String) -> String) {
     post<SweetDel> {
         val user = call.sessionOrNull<Session>()?.let { dao.user(it.userId) }
         val sweet = dao.getSweet(it.id)
@@ -116,9 +111,6 @@ fun Route.delSweet(dao: DAOFacade, hashFunction: (String) -> String) {
             call.redirect(Index())
         }
     }
-}
-
-fun Route.viewSweet(dao: DAOFacade, hashFunction: (String) -> String) {
     get<SweetView> {
         val user = call.sessionOrNull<Session>()?.let { dao.user(it.userId) }
         val sweet = dao.getSweet(it.id)
@@ -127,29 +119,62 @@ fun Route.viewSweet(dao: DAOFacade, hashFunction: (String) -> String) {
         val code = if (user != null) call.securityCode(date, user, hashFunction) else null
         val etagString = date.toString() + "," + user?.userId + "," + sweet.id.toString()
         val etag = etagString.hashCode()
-        sweet.mediaType = if (sweet.mediaFile != null) {
-            ContentTypeByExtension.lookupByPath(uploadDir + "/" + sweet.mediaFile)
-                    .first { it.contentType == "video" || it.contentType == "audio" || it.contentType == "image" }
-                    .contentType
-        } else null
-        call.respond(FreeMarkerContent("sweet-view.ftl", mapOf("user" to user, "sweet" to sweet, "replies" to replies, "date" to date, "code" to code), etag.toString()))
+        val medias = dao.getMedias(sweet.id).map {
+            val med = dao.getMedia(it)
+            Media(med!!.id, med.refId, med.fileName, med.fileType, med.title, med.sortOrder)
+        }.toList()
+
+        call.respond(FreeMarkerContent("sweet-view.ftl", mapOf("user" to user, "sweet" to sweet, "replies" to replies, "date" to date, "code" to code, "medias" to medias), etag.toString()))
     }
-}
-
-
-fun Route.mediaStream() {
-    get<MediaStream> {
-        val mediaUrl = it.url
-        if (mediaUrl == "") {
-            call.respond(HttpStatusCode.NotFound.description("Media $mediaUrl doesn't exist"))
+    post<Upload> {
+        val user = call.sessionOrNull<Session>()?.let { it.userId }
+        if (user == null) {
+            call.redirect(Login())
         } else {
-            val type = ContentTypeByExtension.lookupByPath(uploadDir + "/" + mediaUrl).first()
-            call.respond(LocalFileContent(File(uploadDir + "/" + mediaUrl), contentType = type))
+            var refId: Int? = 0
+            var fileName: String = ""
+            var fileType: String? = ""
+            var title: String? = ""
+            var sortOrder: Int? = 0
+
+            val multipart = call.request.receive<MultiPartData>()
+
+            if (call.request.isMultipart()) {
+                multipart.parts.forEach { part ->
+                    if (part is PartData.FormItem) {
+                        if (part.partName == "refId") {
+                            refId = part.value.toInt()
+                        } else if (part.partName == "fileName") {
+                            fileName = part.value
+                        } else if (part.partName == "title") {
+                            title = part.value
+                        } else if (part.partName == "sortOrder") {
+                            sortOrder = part.value.toInt()
+                        }
+                    } else if (part is PartData.FileItem) {
+                        val ext = File(part.originalFileName).extension
+                        val file = File(uploadDir, "upload-${System.currentTimeMillis()}-${user.hashCode()}.$ext")
+                        part.streamProvider().use { instream ->
+                            file.outputStream().buffered().use { outstream ->
+                                instream.copyTo(outstream)
+                            }
+                        }
+                        fileName = file.name
+                        fileType = part.contentType?.contentType
+                    }
+                    part.dispose()
+                }
+            }
+
+            val id = dao.createMedia(refId, fileName, fileType, title, sortOrder)
+            call.respond(JsonResponse(Media(id, refId, fileName, fileType, title, sortOrder)))
         }
     }
-}
-
-fun Route.updSweet(dao: DAOFacade, hashFunction: (String) -> String) {
+    get<MediaView> {
+        //val type = ContentTypeByExtension.lookupByPath(uploadDir + "/" + mediaUrl).first()
+        val type = ContentType(it.type, it.type, emptyList())
+        call.respond(LocalFileContent(File(uploadDir + "/" + it.name), contentType = type))
+    }
     get<SweetUpd> {
         val user = call.sessionOrNull<Session>()?.let { dao.user(it.userId) }
         val sweet = dao.getSweet(it.id)
@@ -172,9 +197,6 @@ fun Route.updSweet(dao: DAOFacade, hashFunction: (String) -> String) {
             call.redirect(SweetView(it.id))
         }
     }
-}
-
-fun Route.replySweet(dao: DAOFacade, hashFunction: (String) -> String) {
     get<SweetReply> {
         val user = call.sessionOrNull<Session>()?.let { dao.user(it.userId) }
         val sweet = dao.getSweet(it.replyTo)
@@ -196,7 +218,7 @@ fun Route.replySweet(dao: DAOFacade, hashFunction: (String) -> String) {
         if (user == null || !call.verifyCode(it.date, user, it.code, hashFunction)) {
             call.redirect(Login())
         } else {
-            val id = dao.createSweet(user.userId, it.text, null, it.replyTo)
+            val id = dao.createSweet(user.userId, it.text, it.replyTo)
             call.redirect(SweetView(id))
         }
     }
