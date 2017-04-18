@@ -1,6 +1,7 @@
 <#import "template.ftl" as layout />
 
 <@layout.mainLayout title="New sweet">
+
 <form class="pure-form-stacked" action="/sweet-new" method="post" enctype="multipart/form-data">
     <input type="hidden" name="date" value="${date?c}">
     <input type="hidden" name="code" value="${code}">
@@ -16,4 +17,5 @@
     <input class="pure-button pure-button-primary" type="submit" value="Post">
 
 </form>
+
 </@layout.mainLayout>
