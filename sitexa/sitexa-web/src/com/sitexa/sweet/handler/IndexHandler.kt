@@ -1,5 +1,6 @@
-package com.sitexa.sweet
+package com.sitexa.sweet.handler
 
+import com.sitexa.sweet.Session
 import com.sitexa.sweet.dao.*
 import org.jetbrains.ktor.application.*
 import org.jetbrains.ktor.freemarker.*
@@ -13,7 +14,11 @@ import org.joda.time.DateTime
  *
  */
 
-fun Route.index(dao: DAOFacade) {
+
+@location("/")
+class Index
+
+fun Route.indexHandler(dao: DAOFacade) {
     get<Index> {
         val user = call.sessionOrNull<Session>()?.let { dao.user(it.userId) }
         val top = dao.top(10).map { dao.getSweet(it) }
