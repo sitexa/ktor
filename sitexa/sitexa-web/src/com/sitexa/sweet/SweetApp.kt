@@ -7,7 +7,7 @@ import com.sitexa.sweet.dao.DAOFacadeCache
 import com.sitexa.sweet.dao.DAOFacadeDatabase
 import com.sitexa.sweet.handler.indexHandler
 import com.sitexa.sweet.handler.staticHandler
-import com.sitexa.sweet.handler.sweetRouting
+import com.sitexa.sweet.handler.sweetHandler
 import com.sitexa.sweet.handler.userHandler
 import com.sitexa.sweet.model.User
 import com.zaxxer.hikari.HikariDataSource
@@ -90,7 +90,7 @@ class SweetApp : AutoCloseable {
             staticHandler()
             indexHandler(dao)
             userHandler(dao,hashFunction)
-            sweetRouting(dao,hashFunction)
+            sweetHandler(dao,hashFunction)
         }
     }
 
