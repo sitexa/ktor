@@ -45,7 +45,7 @@ data class SweetUpd(val id: Int = 0, val text: String = "", val date: Long = 0L,
 @location("/sweet-reply")
 data class SweetReply(val replyTo: Int = 0, val text: String = "", val date: Long = 0L, val code: String = "")
 
-fun Route.sweetRouting(dao: DAOFacade, hashFunction: (String) -> String){
+fun Route.sweetHandler(dao: DAOFacade, hashFunction: (String) -> String){
     get<SweetNew> {
         val user = call.sessionOrNull<Session>()?.let { dao.user(it.userId) }
 
