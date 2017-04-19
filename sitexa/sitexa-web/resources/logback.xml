@@ -5,7 +5,7 @@
         </encoder>
     </appender>
 
-    <root level="trace">
+    <root level="error">
         <appender-ref ref="STDOUT"/>
     </root>
 
@@ -13,5 +13,6 @@
     <logger name="io.netty" level="INFO"/>
     <logger name="org.terracotta" level="INFO"/>
     <logger name="com.mchange" level="INFO"/>
+    <logger name="com.zaxxer.hikari.pool.HikariPool" level="FATAL"/>
 
 </configuration>

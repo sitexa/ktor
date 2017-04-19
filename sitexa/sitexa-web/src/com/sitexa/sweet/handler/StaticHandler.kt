@@ -1,4 +1,4 @@
-package com.sitexa.sweet
+package com.sitexa.sweet.handler
 
 import org.jetbrains.ktor.application.*
 import org.jetbrains.ktor.content.*
@@ -13,7 +13,7 @@ import org.jetbrains.ktor.routing.*
 @location("/styles/main.css")
 class MainCss
 
-fun Route.styles() {
+fun Route.staticHandler() {
 
     get<MainCss>{
         call.respond(call.resolveClasspathWithPath("", "sweet.css")!!)
