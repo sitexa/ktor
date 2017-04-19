@@ -8,7 +8,7 @@ import java.io.File
  *
  */
 
-val uploadDir = "/Users/open/IdeaProjects/sweet/sitexa/sitexa-web/uploads"
+val uploadDir = "/Users/open/IdeaProjects/sweet/sitexa/uploads"
 
 val dbConfig = mapOf("driver" to "org.mariadb.jdbc.Driver",
         "url" to "jdbc:mysql://localhost:3306/sitexa",
