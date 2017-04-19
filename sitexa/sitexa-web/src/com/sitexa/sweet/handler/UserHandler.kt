@@ -1,9 +1,12 @@
-package com.sitexa.sweet
+package com.sitexa.sweet.handler
 
+
+import com.sitexa.sweet.*
 import com.sitexa.sweet.dao.*
-import com.sitexa.sweet.model.*
+import com.sitexa.sweet.model.User
 import org.jetbrains.ktor.application.*
 import org.jetbrains.ktor.freemarker.*
+import org.jetbrains.ktor.http.*
 import org.jetbrains.ktor.locations.*
 import org.jetbrains.ktor.routing.*
 import org.jetbrains.ktor.sessions.*
@@ -13,7 +16,20 @@ import org.jetbrains.ktor.sessions.*
  *
  */
 
-fun Route.register(dao: DAOFacade, hashFunction: (String) -> String) {
+
+@location("/user/{user}")
+data class UserPage(val user: String)
+
+@location("/register")
+data class Register(val userId: String = "", val mobile: String = "", val displayName: String = "", val email: String = "", val password: String = "", val error: String = "")
+
+@location("/login")
+data class Login(val userId: String = "", val password: String = "", val error: String = "")
+
+@location("/logout")
+class Logout
+
+fun Route.userHandler(dao: DAOFacade, hash: (String) -> String) {
     post<Register> {
         val user = call.sessionOrNull<Session>()?.let { dao.user(it.userId) }
         if (user != null) {
@@ -30,7 +46,7 @@ fun Route.register(dao: DAOFacade, hashFunction: (String) -> String) {
             } else if (dao.user(it.userId) != null) {
                 call.redirect(it.copy(error = "User with the following login is already registered", password = ""))
             } else {
-                val hash = hashFunction(it.password)
+                val hash = hash(it.password)
                 val newUser = User(it.userId, it.mobile, it.email, it.displayName, hash)
 
                 try {
@@ -61,4 +77,55 @@ fun Route.register(dao: DAOFacade, hashFunction: (String) -> String) {
             call.respond(FreeMarkerContent("register.ftl", mapOf("pageUser" to User(it.userId, it.mobile, it.email, it.displayName, ""), "error" to it.error), ""))
         }
     }
+    get<Login> {
+        val user = call.sessionOrNull<Session>()?.let { dao.user(it.userId) }
+
+        if (user != null) {
+            call.redirect(UserPage(user.userId))
+        } else {
+            call.respond(FreeMarkerContent("login.ftl", mapOf("userId" to it.userId, "error" to it.error), ""))
+        }
+    }
+    post<Login> {
+        val login = when {
+            it.userId.length < 4 -> null
+            it.password.length < 6 -> null
+            !userNameValid(it.userId) -> null
+            else -> dao.user(it.userId, hash(it.password))
+        }
+
+        if (login == null) {
+            call.redirect(it.copy(password = "", error = "Invalid username or password"))
+        } else {
+            call.session(Session(login.userId))
+            call.redirect(UserPage(login.userId))
+        }
+    }
+    get<Logout> {
+        call.clearSession()
+        call.redirect(Index())
+    }
+    get<UserPage> {
+        val user = call.sessionOrNull<Session>()?.let { dao.user(it.userId) }
+        val pageUser = dao.user(it.user)
+
+        if (pageUser == null) {
+            call.respond(HttpStatusCode.NotFound.description("User ${it.user} doesn't exist"))
+        } else {
+            val sweets = dao.userSweets(it.user).map { dao.getSweet(it) }
+            val etag = (user?.userId ?: "") + "_" + sweets.map { it.text.hashCode() }.hashCode().toString()
+
+            call.respond(FreeMarkerContent("user.ftl", mapOf("user" to user, "pageUser" to pageUser, "sweets" to sweets), etag))
+        }
+    }
 }
+
+
+private val userIdPattern = "[a-zA-Z0-9_\\.]+".toRegex()
+internal fun userNameValid(userId: String) = userId.matches(userIdPattern)
+
+private val emailPattern = "[a-zA-Z0-9_]+@[a-zA-Z0-9_]+([-.][a-zA-Z0-9_]+)".toRegex()
+internal fun emailValid(email: String) = email.matches(emailPattern)
+
+private val phonePattern = "\\d{11}|\\d{7,8}".toRegex()
+internal fun phoneValid(phone: String) = phone.matches(phonePattern)

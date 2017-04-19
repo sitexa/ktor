@@ -5,8 +5,12 @@ import com.google.gson.GsonBuilder
 import com.sitexa.sweet.dao.DAOFacade
 import com.sitexa.sweet.dao.DAOFacadeCache
 import com.sitexa.sweet.dao.DAOFacadeDatabase
-import com.sitexa.sweet.dao.getDataSource
+import com.sitexa.sweet.handler.indexHandler
+import com.sitexa.sweet.handler.staticHandler
+import com.sitexa.sweet.handler.sweetRouting
+import com.sitexa.sweet.handler.userHandler
 import com.sitexa.sweet.model.User
+import com.zaxxer.hikari.HikariDataSource
 import freemarker.cache.ClassTemplateLoader
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.ktor.application.*
@@ -18,7 +22,6 @@ import org.jetbrains.ktor.freemarker.FreeMarker
 import org.jetbrains.ktor.http.ContentType
 import org.jetbrains.ktor.http.HttpHeaders
 import org.jetbrains.ktor.locations.Locations
-import org.jetbrains.ktor.locations.location
 import org.jetbrains.ktor.logging.CallLogging
 import org.jetbrains.ktor.request.acceptItems
 import org.jetbrains.ktor.request.header
@@ -44,30 +47,11 @@ import javax.crypto.spec.SecretKeySpec
  */
 
 
-@location("/")
-class Index
-
-@location("/user/{user}")
-data class UserPage(val user: String)
-
-@location("/register")
-data class Register(val userId: String = "", val mobile: String = "", val displayName: String = "", val email: String = "", val password: String = "", val error: String = "")
-
-@location("/login")
-data class Login(val userId: String = "", val password: String = "", val error: String = "")
-
-@location("/logout")
-class Logout
-
 class JsonResponse(val data: Any)
 
 data class Session(val userId: String)
 
-
 class SweetApp : AutoCloseable {
-
-    val hashKey = hex("6819b57a326945c1968f45236589")
-    val dir = File("target/db")
 
     val datasource = getDataSource()
 
@@ -103,15 +87,10 @@ class SweetApp : AutoCloseable {
         }
 
         install(Routing) {
-
-            styles()
-            index(dao)
-            userPage(dao)
-
+            staticHandler()
+            indexHandler(dao)
+            userHandler(dao,hashFunction)
             sweetRouting(dao,hashFunction)
-
-            login(dao, hashFunction)
-            register(dao, hashFunction)
         }
     }
 
@@ -144,11 +123,15 @@ fun ApplicationCall.verifyCode(date: Long, user: User, code: String, hashFunctio
 
 fun ApplicationCall.refererHost() = request.header(HttpHeaders.Referrer)?.let { URI.create(it).host }
 
-private val userIdPattern = "[a-zA-Z0-9_\\.]+".toRegex()
-internal fun userNameValid(userId: String) = userId.matches(userIdPattern)
 
-private val emailPattern = "[a-zA-Z0-9_]+@[a-zA-Z0-9_]+([-.][a-zA-Z0-9_]+)".toRegex()
-internal fun emailValid(email: String) = email.matches(emailPattern)
-
-private val phonePattern = "\\d{11}|\\d{7,8}".toRegex()
-internal fun phoneValid(phone: String) = phone.matches(phonePattern)
+fun getDataSource(): HikariDataSource {
+    val ds = HikariDataSource()
+    ds.maximumPoolSize = dbConfig["pool"].toString().toInt()
+    ds.driverClassName = dbConfig["driver"].toString()
+    ds.jdbcUrl = dbConfig["url"].toString()
+    ds.isAutoCommit = dbConfig["autoCommit"].toString().toBoolean()
+    ds.addDataSourceProperty("user", dbConfig["user"].toString())
+    ds.addDataSourceProperty("password", dbConfig["password"].toString())
+    ds.addDataSourceProperty("dialect", dbConfig["dialect"].toString())
+    return ds
+}

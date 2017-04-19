@@ -1,5 +1,6 @@
-package com.sitexa.sweet
+package com.sitexa.sweet.handler
 
+import com.sitexa.sweet.*
 import com.sitexa.sweet.dao.DAOFacade
 import com.sitexa.sweet.model.Media
 import org.jetbrains.ktor.application.call
@@ -171,9 +172,7 @@ fun Route.sweetRouting(dao: DAOFacade, hashFunction: (String) -> String){
         }
     }
     get<MediaView> {
-        //val type = ContentTypeByExtension.lookupByPath(uploadDir + "/" + mediaUrl).first()
-        val type = ContentType(it.type, it.type, emptyList())
-        call.respond(LocalFileContent(File(uploadDir + "/" + it.name), contentType = type))
+        call.respond(LocalFileContent(File(uploadDir + "/" + it.name)))
     }
     get<SweetUpd> {
         val user = call.sessionOrNull<Session>()?.let { dao.user(it.userId) }

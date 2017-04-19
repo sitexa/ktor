@@ -1,5 +1,8 @@
 package com.sitexa.sweet
 
+import org.jetbrains.ktor.util.hex
+import java.io.File
+
 /**
  * Created by open on 18/04/2017.
  *
@@ -14,5 +17,9 @@ val dbConfig = mapOf("driver" to "org.mariadb.jdbc.Driver",
         "pool" to 20,
         "autoCommit" to false,
         "dialect" to "MysqlDialect")
+
+val hashKey = hex("6819b57a326945c1968f45236589")
+val dir = File("target/db")
+
 
 
