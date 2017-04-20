@@ -46,9 +46,17 @@ class JsonResponse(val data: Any)
 data class Session(val userId: String)
 
 
-class SweetApi:AutoCloseable{
+class SweetApi : AutoCloseable {
 
-    val datasource = getDataSource()
+    val datasource = HikariDataSource().apply {
+        maximumPoolSize = dbConfig["pool"].toString().toInt()
+        driverClassName = dbConfig["driver"].toString()
+        jdbcUrl = dbConfig["url"].toString()
+        isAutoCommit = dbConfig["autoCommit"].toString().toBoolean()
+        addDataSourceProperty("user", dbConfig["user"].toString())
+        addDataSourceProperty("password", dbConfig["password"].toString())
+        addDataSourceProperty("dialect", dbConfig["dialect"].toString())
+    }
 
     val hmacKey = SecretKeySpec(hashKey, "HmacSHA1")
     val dao: DAOFacade = DAOFacadeCache(DAOFacadeDatabase(Database.connect(datasource)), File(dir.parentFile, "ehcache"))
@@ -79,9 +87,10 @@ class SweetApi:AutoCloseable{
         }
 
         install(Routing) {
-            userHandler(dao,hashFunction)
-            sweetHandler(dao,hashFunction)
+            userHandler(dao, hashFunction)
+            sweetHandler(dao, hashFunction)
         }
+
     }
 
     override fun close() {
@@ -93,7 +102,6 @@ class SweetApi:AutoCloseable{
         hmac.init(hmacKey)
         return hex(hmac.doFinal(password.toByteArray(Charsets.UTF_8)))
     }
-
 
 }
 
@@ -115,15 +123,17 @@ fun ApplicationCall.verifyCode(date: Long, user: User, code: String, hashFunctio
 
 fun ApplicationCall.refererHost() = request.header(HttpHeaders.Referrer)?.let { URI.create(it).host }
 
-
-fun getDataSource(): HikariDataSource {
+fun getDataSource(environment: ApplicationEnvironment): HikariDataSource {
     val ds = HikariDataSource()
-    ds.maximumPoolSize = dbConfig["pool"].toString().toInt()
-    ds.driverClassName = dbConfig["driver"].toString()
-    ds.jdbcUrl = dbConfig["url"].toString()
-    ds.isAutoCommit = dbConfig["autoCommit"].toString().toBoolean()
-    ds.addDataSourceProperty("user", dbConfig["user"].toString())
-    ds.addDataSourceProperty("password", dbConfig["password"].toString())
-    ds.addDataSourceProperty("dialect", dbConfig["dialect"].toString())
+    val dbConfig = environment.config.config("database")
+    ds.maximumPoolSize = dbConfig.property("poolSize").toString().toInt()
+    ds.driverClassName = dbConfig.property("driver").toString()
+    ds.jdbcUrl = dbConfig.property("url").toString()
+    ds.isAutoCommit = dbConfig.property("autoCommit").toString().toBoolean()
+    ds.addDataSourceProperty("user", dbConfig.property("user").toString())
+    ds.addDataSourceProperty("password", dbConfig.property("password").toString())
+    ds.addDataSourceProperty("dialect", dbConfig.property("dialect").toString())
     return ds
 }
+
+
