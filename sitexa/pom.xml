@@ -104,6 +104,24 @@
         </repository>
     </repositories>
 
+    <pluginRepositories>
+        <pluginRepository>
+            <id>jcenter</id>
+            <url>http://jcenter.bintray.com</url>
+        </pluginRepository>
+        <pluginRepository>
+            <id>devexperts-maven</id>
+            <url>https://dl.bintray.com/devexperts/Maven</url>
+        </pluginRepository>
+    </pluginRepositories>
+
+    <scm>
+        <connection>scm:git:https://github.com/sitexa/sweet.git</connection>
+        <developerConnection>scm:git:git@github.com:sitexa/sweet.git</developerConnection>
+        <url>https://github.com/Kotlin/ktor</url>
+        <tag>HEAD</tag>
+    </scm>
+
     <build>
         <sourceDirectory>src</sourceDirectory>
         <resources>
@@ -112,6 +130,31 @@
             </resource>
         </resources>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>2.4</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.19.1</version>
+                <configuration>
+                    <includes>
+                        <include>**/Test*.*</include>
+                        <include>**/*Test.*</include>
+                        <include>**/*Tests.*</include>
+                    </includes>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -146,18 +189,68 @@
                 </configuration>
             </plugin>
             <plugin>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-maven-plugin</artifactId>
+                <version>${kotlin.version}</version>
+
+                <executions>
+                    <execution>
+                        <id>compile</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+
+                    <execution>
+                        <id>test-compile</id>
+                        <phase>test-compile</phase>
+                        <goals>
+                            <goal>test-compile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <jvmTarget>1.8</jvmTarget>
+                    <args>
+                        <arg>-Xcoroutines=enable</arg>
+                    </args>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-release-plugin</artifactId>
+                <version>2.5.3</version>
+                <configuration>
+                    <autoVersionSubmodules>true</autoVersionSubmodules>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.0.2</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                            <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>com.devexperts.bintray</groupId>
                 <artifactId>bintray-maven-plugin</artifactId>
+                <configuration>
+                    <id>bintray-sitexa-repo</id>
+                    <url>https://api.bintray.com/maven/sitexa/sitexa</url>
+                </configuration>
                 <executions>
                     <execution>
                         <id>bintray-deploy</id>
                         <goals>
                             <goal>publish</goal>
+                            <goal>deploy</goal>
                         </goals>
-                        <configuration>
-                            <id>bintray</id>
-                            <url>https://api.bintray.com/maven/kotlin/ktor/ktor</url>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -165,14 +258,50 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>1.4.0</version>
-
                 <configuration>
                     <mainClass>org.jetbrains.ktor.jetty.DevelopmentHost</mainClass>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-project-info-reports-plugin</artifactId>
+                <version>2.9</version>
+            </plugin>
         </plugins>
+
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>com.devexperts.bintray</groupId>
+                    <artifactId>bintray-maven-plugin</artifactId>
+                    <version>1.3</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
     </build>
 
+    <distributionManagement>
+        <repository>
+            <id>bintray-sitexa-repo</id>
+            <url>https://api.bintray.com/maven/sitexa/sitexa</url>
+        </repository>
+    </distributionManagement>
 
+    <profiles>
+        <profile>
+            <id>development</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <modules>
+                <module>sitexa-api</module>
+                <module>sitexa-web</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>bintray</id>
+        </profile>
+    </profiles>
 
 </project>
