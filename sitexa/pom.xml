@@ -10,7 +10,9 @@
     <packaging>pom</packaging>
 
     <modules>
+        <module>sitexa-api</module>
         <module>sitexa-web</module>
+        <module>sitexa-sample</module>
     </modules>
 
     <properties>
